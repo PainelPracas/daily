@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporting Diário - Praças Iasmim Cuerba</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        /* Estilos customizados e branding PicPay */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F0F1F5;
+        }
+        .picpay-green-dark { color: #1D824A; }
+        .bg-picpay-green-dark { background-color: #1D824A; }
+        .picpay-green-light { color: #21C25E; }
+        .bg-picpay-green-light { background-color: #21C25E; }
+        
+        /* Estilo para abas e botões com animação */
+        .interactive-item {
+            transition: all 0.2s ease-in-out;
+        }
+        .interactive-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .tab-item.active {
+            background-color: #1D824A;
+            color: white;
+            font-weight: 700;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .ranking-btn.active {
+            background-color: #21C25E;
+            color: white;
+        }
+
+        /* Estilo para o calendário heatmap */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px; /* Reduzido para melhor visualização em telas menores */
+        }
+        .calendar-day {
+            aspect-ratio: 1 / 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 8px;
+            font-size: 0.75rem; /* Ajustado para caber melhor */
+            transition: all 0.2s ease-in-out;
+        }
+        .calendar-day.empty {
+            background-color: transparent;
+        }
+        .calendar-day-header {
+            font-weight: 600;
+            font-size: 0.7rem;
+            text-align: center;
+            color: #6B7280;
+        }
+
+        /* Melhorias de Responsividade */
+        .summary-card-content {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            flex-grow: 1;
+        }
+        .summary-card-icon {
+            flex-shrink: 0;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+
+        <section id="header-summary" class="mb-12">
+            <div class="mb-8">
+                <h1 class="text-3xl md:text-4xl font-extrabold text-gray-900">Reporting Diário - Praças Iasmim Cuerba</h1>
+                <p class="text-base md:text-lg text-gray-500">Visão 360 Histórica das Praças</p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div id="total-tpv-card" class="bg-picpay-green-dark text-white p-4 md:p-6 rounded-2xl shadow-lg flex items-start justify-between interactive-item"></div>
+                <div id="avg-ticket-card" class="bg-white text-gray-800 p-4 md:p-6 rounded-2xl shadow-lg flex items-start justify-between interactive-item"></div>
+                <div id="total-transactions-card" class="bg-white text-gray-800 p-4 md:p-6 rounded-2xl shadow-lg flex items-start justify-between interactive-item"></div>
+                <div id="total-vidas-card" class="bg-white text-gray-800 p-4 md:p-6 rounded-2xl shadow-lg flex items-start justify-between interactive-item"></div>
+            </div>
+        </section>
+
+        <section id="penetration-section" class="mb-12">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">Penetração por Praça</h2>
+            <div id="penetration-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+                </div>
+        </section>
+
+        <section id="ranking-comparison" class="mb-12">
+            <div class="bg-white p-4 md:p-6 rounded-2xl shadow-lg">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-4 sm:mb-0">Ranking de Praças</h2>
+                    <div id="ranking-controls" class="flex-wrap flex space-x-2 bg-gray-200 p-1 rounded-full">
+                        </div>
+                </div>
+                <div class="h-[400px] md:h-[600px] relative">
+                    <canvas id="rankingChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <section id="store-details">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">Análise Individual das Praças</h2>
+            <div class="flex flex-col lg:flex-row gap-8">
+                <div id="tabs-navigation" class="lg:w-1/4 flex-shrink-0">
+                    <div class="bg-white rounded-2xl shadow-lg p-3 space-y-2">
+                        </div>
+                </div>
+                <div id="tab-content" class="lg:w-3/4 bg-white rounded-2xl shadow-lg p-4 md:p-6 min-h-[800px]">
+                    </div>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        // --- DATA SOURCE ---
+        // Para simplificar e permitir o uso local sem um servidor, os dados do "df.csv"
+        // foram incorporados diretamente nesta constante.
+        const csvData = `
+dia_mes,account_name,tpv,vidas_dia,vidas_acumuladas,transacoes,ticket_medio
+07-01,ESTADO DO RIO DE JANEIRO,42230.96,396,396,398,106.107940
+07-02,ESTADO DO RIO DE JANEIRO,158091.73,1047,1139,1079,146.516895
+07-03,ESTADO DO RIO DE JANEIRO,176560.34,887,1567,906,194.878962
+07-04,ESTADO DO RIO DE JANEIRO,251662.12,1150,1981,1175,214.180528
+07-05,ESTADO DO RIO DE JANEIRO,265313.35,1197,2318,1254,211.573644
+07-06,ESTADO DO RIO DE JANEIRO,253511.22,1208,2569,1251,202.646859
+07-07,ESTADO DO RIO DE JANEIRO,421865.10,1543,2949,1617,260.893692
+07-08,ESTADO DO RIO DE JANEIRO,432129.18,1651,3281,1732,249.497217
+07-09,ESTADO DO RIO DE JANEIRO,470340.39,1770,3632,1880,250.181059
+07-10,ESTADO DO RIO DE JANEIRO,592408.33,2037,4032,2168,273.251075
+07-11,ESTADO DO RIO DE JANEIRO,533608.77,2045,4363,2184,244.326360
+07-12,ESTADO DO RIO DE JANEIRO,469278.93,2024,4585,2146,218.676109
+07-13,ESTADO DO RIO DE JANEIRO,385427.99,1816,4733,1916,201.162834
+07-14,ESTADO DO RIO DE JANEIRO,605001.13,2227,4972,2364,255.922644
+07-15,ESTADO DO RIO DE JANEIRO,603570.52,2162,5184,2306,261.739167
+07-16,ESTADO DO RIO DE JANEIRO,535954.44,2173,5348,2337,229.334377
+07-17,ESTADO DO RIO DE JANEIRO,608520.40,2271,5552,2411,252.393364
+07-18,ESTADO DO RIO DE JANEIRO,640635.24,2470,5739,2613,245.172308
+07-19,ESTADO DO RIO DE JANEIRO,599021.92,2395,5896,2550,234.910557
+07-20,ESTADO DO RIO DE JANEIRO,741498.81,2954,6043,3120,237.659875
+07-21,ESTADO DO RIO DE JANEIRO,465959.94,1144,6224,1275,365.458776
+07-22,ESTADO DO RIO DE JANEIRO,334306.64,733,6372,866,386.035381
+07-23,ESTADO DO RIO DE JANEIRO,286149.89,649,6501,759,377.009078
+07-24,ESTADO DO RIO DE JANEIRO,279053.59,596,6636,703,396.946785
+07-25,ESTADO DO RIO DE JANEIRO,316324.22,636,6801,751,421.204021
+07-26,ESTADO DO RIO DE JANEIRO,264575.10,569,6911,667,396.664318
+07-27,ESTADO DO RIO DE JANEIRO,173596.77,421,6974,484,358.671012
+07-28,ESTADO DO RIO DE JANEIRO,210698.23,471,7073,541,389.460684
+07-29,ESTADO DO RIO DE JANEIRO,62855.75,149,7099,165,380.943939
+07-03,MUNICIPIO DE CAMBORIU,2431.51,11,11,12,202.625833
+07-04,MUNICIPIO DE CAMBORIU,8961.90,44,46,44,203.679545
+07-05,MUNICIPIO DE CAMBORIU,6005.83,38,59,38,158.048158
+07-06,MUNICIPIO DE CAMBORIU,6325.75,38,69,42,150.613095
+07-07,MUNICIPIO DE CAMBORIU,7312.60,43,80,44,166.195455
+07-08,MUNICIPIO DE CAMBORIU,7234.26,45,89,45,160.761333
+07-09,MUNICIPIO DE CAMBORIU,9367.82,49,99,51,183.682745
+07-10,MUNICIPIO DE CAMBORIU,20855.25,77,121,78,267.375000
+07-11,MUNICIPIO DE CAMBORIU,8055.03,22,127,22,366.137727
+07-12,MUNICIPIO DE CAMBORIU,2553.94,12,132,12,212.828333
+07-13,MUNICIPIO DE CAMBORIU,1785.94,6,133,6,297.656667
+07-14,MUNICIPIO DE CAMBORIU,7338.64,15,142,16,458.665000
+07-15,MUNICIPIO DE CAMBORIU,3432.63,10,147,11,312.057273
+07-01,MUNICIPIO DE CHAPECÓ,35.01,1,1,1,35.010000
+07-02,MUNICIPIO DE CHAPECÓ,345.56,2,3,2,172.780000
+07-03,MUNICIPIO DE CHAPECÓ,765.47,5,7,5,153.094000
+07-04,MUNICIPIO DE CHAPECÓ,1217.36,4,10,5,243.472000
+07-05,MUNICIPIO DE CHAPECÓ,1601.60,8,13,8,200.200000
+07-06,MUNICIPIO DE CHAPECÓ,792.27,5,14,5,158.454000
+07-07,MUNICIPIO DE CHAPECÓ,1613.64,7,15,10,161.364000
+07-08,MUNICIPIO DE CHAPECÓ,545.42,5,15,5,109.084000
+07-09,MUNICIPIO DE CHAPECÓ,1591.32,9,16,10,159.132000
+07-10,MUNICIPIO DE CHAPECÓ,5353.33,16,22,17,314.901765
+07-11,MUNICIPIO DE CHAPECÓ,794.69,2,23,2,397.345000
+07-12,MUNICIPIO DE CHAPECÓ,563.07,3,24,3,187.690000
+07-14,MUNICIPIO DE CHAPECÓ,206.98,3,24,3,68.993333
+07-15,MUNICIPIO DE CHAPECÓ,158.99,1,24,1,158.990000
+07-01,PREFEITURA MUNICIPAL DE BOMBINHAS,828.79,12,12,12,69.065833
+07-02,PREFEITURA MUNICIPAL DE BOMBINHAS,5622.09,37,41,37,151.948378
+07-03,PREFEITURA MUNICIPAL DE BOMBINHAS,6472.26,45,62,46,140.701304
+07-04,PREFEITURA MUNICIPAL DE BOMBINHAS,11713.33,57,90,60,195.222167
+07-05,PREFEITURA MUNICIPAL DE BOMBINHAS,7279.55,45,100,46,158.251087
+07-06,PREFEITURA MUNICIPAL DE BOMBINHAS,8461.52,48,109,54,156.694815
+07-07,PREFEITURA MUNICIPAL DE BOMBINHAS,16542.54,65,122,68,243.272647
+07-08,PREFEITURA MUNICIPAL DE BOMBINHAS,15996.23,59,134,61,262.233279
+07-09,PREFEITURA MUNICIPAL DE BOMBINHAS,13493.53,68,144,73,184.842877
+07-10,PREFEITURA MUNICIPAL DE BOMBINHAS,24789.17,93,163,94,263.714574
+07-11,PREFEITURA MUNICIPAL DE BOMBINHAS,4945.18,17,167,18,274.732222
+07-12,PREFEITURA MUNICIPAL DE BOMBINHAS,1245.10,4,168,4,311.275000
+07-13,PREFEITURA MUNICIPAL DE BOMBINHAS,1222.38,7,170,7,174.625714
+07-14,PREFEITURA MUNICIPAL DE BOMBINHAS,2070.08,12,170,12,172.506667
+07-15,PREFEITURA MUNICIPAL DE BOMBINHAS,3203.40,7,174,7,457.628571
+07-16,PREFEITURA MUNICIPAL DE BOMBINHAS,4096.87,13,178,15,273.124667
+07-17,PREFEITURA MUNICIPAL DE BOMBINHAS,2682.90,7,182,7,383.271429
+07-18,PREFEITURA MUNICIPAL DE BOMBINHAS,4169.48,11,188,11,379.043636
+07-19,PREFEITURA MUNICIPAL DE BOMBINHAS,2140.63,7,192,8,267.578750
+07-20,PREFEITURA MUNICIPAL DE BOMBINHAS,3288.17,8,194,12,274.014167
+07-01,PREFEITURA SANTANA DO IPANEMA,2537.91,61,61,61,41.605082
+07-02,PREFEITURA SANTANA DO IPANEMA,5278.87,82,102,85,62.104353
+07-03,PREFEITURA SANTANA DO IPANEMA,5307.09,77,126,80,66.338625
+07-04,PREFEITURA SANTANA DO IPANEMA,10916.62,115,163,121,90.220000
+07-05,PREFEITURA SANTANA DO IPANEMA,8124.33,95,182,100,81.243300
+07-06,PREFEITURA SANTANA DO IPANEMA,8121.76,87,193,90,90.241778
+07-07,PREFEITURA SANTANA DO IPANEMA,14078.09,118,216,124,113.532984
+07-08,PREFEITURA SANTANA DO IPANEMA,13426.31,113,235,120,111.885917
+07-09,PREFEITURA SANTANA DO IPANEMA,15058.25,111,253,118,127.612288
+07-10,PREFEITURA SANTANA DO IPANEMA,17490.83,150,269,153,114.319150
+07-11,PREFEITURA SANTANA DO IPANEMA,8236.47,48,278,50,164.729400
+07-12,PREFEITURA SANTANA DO IPANEMA,3425.24,24,286,25,137.009600
+07-13,PREFEITURA SANTANA DO IPANEMA,2200.76,15,287,16,137.547500
+07-14,PREFEITURA SANTANA DO IPANEMA,3333.15,15,290,16,208.321875
+07-15,PREFEITURA SANTANA DO IPANEMA,3974.20,17,298,20,198.710000
+07-16,PREFEITURA SANTANA DO IPANEMA,6119.64,26,305,28,218.558571
+07-17,PREFEITURA SANTANA DO IPANEMA,5911.57,18,314,22,268.707727
+07-18,PREFEITURA SANTANA DO IPANEMA,1694.20,12,315,13,130.323077
+07-19,PREFEITURA SANTANA DO IPANEMA,2054.60,9,318,9,228.288889
+07-20,PREFEITURA SANTANA DO IPANEMA,1332.16,7,321,7,190.308571
+07-21,PREFEITURA SANTANA DO IPANEMA,1868.24,6,323,6,311.373333
+07-22,PREFEITURA SANTANA DO IPANEMA,26.99,1,323,1,26.990000
+07-23,PREFEITURA SANTANA DO IPANEMA,1148.09,5,324,5,229.618000
+07-24,PREFEITURA SANTANA DO IPANEMA,1232.05,7,326,7,176.007143
+07-25,PREFEITURA SANTANA DO IPANEMA,748.29,5,327,5,149.658000
+07-26,PREFEITURA SANTANA DO IPANEMA,239.65,3,327,3,79.883333
+07-27,PREFEITURA SANTANA DO IPANEMA,1407.52,4,328,4,351.880000
+07-28,PREFEITURA SANTANA DO IPANEMA,94.99,1,328,1,94.990000
+07-01,TIJUCAS,382.44,4,4,4,95.610000
+07-02,TIJUCAS,463.97,4,6,4,115.992500
+07-03,TIJUCAS,1017.83,8,10,8,127.228750
+07-04,TIJUCAS,1892.56,8,12,8,236.570000
+07-05,TIJUCAS,1046.41,5,12,6,174.401667
+07-06,TIJUCAS,1040.24,5,14,5,208.048000
+07-07,TIJUCAS,2152.89,9,16,9,239.210000
+07-08,TIJUCAS,1082.77,7,17,8,135.346250
+07-09,TIJUCAS,2557.27,12,18,12,213.105833
+07-10,TIJUCAS,2174.75,11,19,12,181.229167
+07-11,TIJUCAS,1614.73,3,20,4,403.682500
+07-12,TIJUCAS,1238.00,3,20,3,412.666667
+07-13,TIJUCAS,54.99,1,20,1,54.990000
+07-14,TIJUCAS,837.96,3,22,3,279.320000
+07-15,TIJUCAS,1601.97,3,22,3,533.990000
+07-16,TIJUCAS,54.99,1,22,1,54.990000
+07-17,TIJUCAS,1368.23,3,23,3,456.076667
+07-18,TIJUCAS,1767.42,3,24,4,441.855000
+07-19,TIJUCAS,300.00,1,25,1,300.000000
+`;
+        
+        const POPULATION_DATA = {
+            'ESTADO DO RIO DE JANEIRO': 383155,
+            'PREFEITURA MUNICIPAL DE BOMBINHAS': 2003,
+            'PREFEITURA SANTANA DO IPANEMA': 3323,
+            'MUNICIPIO DE CAMBORIU': 3502,
+            'MUNICIPIO DE CHAPECÓ': 3560,
+            'TIJUCAS': 1247       
+        };
+        
+        let chartInstances = {};
+
+        // --- UTILITY FUNCTIONS ---
+        const formatCurrency = (value) => (value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        const formatNumber = (value) => (value || 0).toLocaleString('pt-BR');
+        const formatPercent = (value, decimals = 2) => `${((value || 0) * 100).toFixed(decimals)}%`.replace('.', ',');
+        
+        /**
+         * Parses CSV text into a structured Map.
+         * @param {string} csvText - The raw CSV string.
+         * @returns {{storesData: Map<string, object[]>, latestDate: Date}}
+         */
+        function parseData(csvText) {
+            const lines = csvText.trim().split('\n');
+            const header = lines.shift().trim().split(',');
+            
+            const idx = {
+                dia_mes: header.indexOf('dia_mes'),
+                account_name: header.indexOf('account_name'),
+                tpv: header.indexOf('tpv'),
+                vidas_dia: header.indexOf('vidas_dia'),
+                vidas_acumuladas: header.indexOf('vidas_acumuladas'),
+                transacoes: header.indexOf('transacoes'),
+                ticket_medio: header.indexOf('ticket_medio'),
+            };
+
+            let latestDate = null;
+            const storesData = new Map();
+
+            lines.forEach(line => {
+                const parts = line.trim().split(',');
+                if (parts.length < header.length) return;
+
+                const accountName = parts[idx.account_name].trim().toUpperCase();
+                if (!accountName) return;
+
+                const dateStr = `2025-${parts[idx.dia_mes]}`;
+                const currentDate = new Date(dateStr);
+                if (!isNaN(currentDate.getTime())) {
+                     if (!latestDate || currentDate > latestDate) {
+                        latestDate = currentDate;
+                    }
+                }
+
+                const dailyEntry = {
+                    date: dateStr,
+                    accountName: accountName,
+                    valorAntecipado: parseFloat(parts[idx.tpv]) || 0,
+                    vidasDia: parseInt(parts[idx.vidas_dia], 10) || 0,
+                    vidasAcumuladas: parseInt(parts[idx.vidas_acumuladas], 10) || 0,
+                    transactions: parseInt(parts[idx.transacoes], 10) || 0,
+                    avgTicket: parseFloat(parts[idx.ticket_medio]) || 0,
+                };
+
+                if (!storesData.has(accountName)) {
+                    storesData.set(accountName, []);
+                }
+                storesData.get(accountName).push(dailyEntry);
+            });
+            
+            return { storesData, latestDate };
+        }
+
+
+        function calculateTotals(data, population, latestDate) {
+            let totalValorAntecipado = 0;
+            let totalTransactions = 0;
+            let finalVidasAcumuladas = 0;
+            let penetration = 0;
+            let penetrationChange = 0;
+
+            if (data && data.length > 0) {
+                const sortedData = [...data].sort((a, b) => new Date(a.date) - new Date(b.date));
+                const dataByDate = new Map(sortedData.map(d => [d.date, d]));
+                
+                finalVidasAcumuladas = sortedData[sortedData.length - 1].vidasAcumuladas;
+
+                sortedData.forEach(item => {
+                    totalValorAntecipado += item.valorAntecipado;
+                    totalTransactions += item.transactions;
+                });
+                
+                if (population > 0 && latestDate) {
+                    penetration = finalVidasAcumuladas / population;
+                    
+                    let sevenDaysAgo = new Date(latestDate);
+                    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                    
+                    let sevenDaysAgoData = null;
+                    for(let i = 0; i < 7; i++){
+                        const dateToTry = new Date(sevenDaysAgo);
+                        dateToTry.setDate(dateToTry.getDate()-i);
+                        const dateToTryStr = `2025-${(dateToTry.getUTCMonth() + 1).toString().padStart(2, '0')}-${dateToTry.getUTCDate().toString().padStart(2, '0')}`;
+                        if(dataByDate.has(dateToTryStr)){
+                           sevenDaysAgoData = dataByDate.get(dateToTryStr);
+                           break;
+                        }
+                    }
+
+                    if (sevenDaysAgoData) {
+                        const previousPenetration = sevenDaysAgoData.vidasAcumuladas / population;
+                        penetrationChange = penetration - previousPenetration;
+                    }
+                }
+            }
+            
+            const avgTicket = totalValorAntecipado / totalTransactions || 0;
+            return { totalValorAntecipado, totalTransactions, totalVidas: finalVidasAcumuladas, avgTicket, penetration, penetrationChange };
+        }
+
+        // --- RENDER FUNCTIONS ---
+        function renderSummaryCards(storesData) {
+            let totalValorAntecipado = 0;
+            let totalTransactions = 0;
+            let totalVidasAcumuladas = 0;
+            
+            storesData.forEach(data => {
+                 if (data && data.length > 0) {
+                    const sortedData = [...data].sort((a, b) => new Date(a.date) - new Date(b.date));
+                    totalVidasAcumuladas += sortedData[sortedData.length - 1].vidasAcumuladas;
+                    
+                    data.forEach(item => {
+                        totalValorAntecipado += item.valorAntecipado;
+                        totalTransactions += item.transactions;
+                    });
+                }
+            });
+            
+            const avgTicket = totalValorAntecipado / totalTransactions || 0;
+
+            document.getElementById('total-tpv-card').innerHTML = `
+                <div class="summary-card-content">
+                    <p class="text-sm font-medium text-green-200 mb-1">Valor Antecipado</p>
+                    <p class="text-2xl md:text-3xl font-bold">${formatCurrency(totalValorAntecipado)}</p>
+                </div>
+                <div class="bg-picpay-green-light p-3 rounded-xl summary-card-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 md:h-8 md:w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg></div>`;
+            document.getElementById('avg-ticket-card').innerHTML = `
+                 <div class="summary-card-content">
+                    <p class="text-sm font-medium text-gray-500 mb-1">Ticket Médio</p>
+                    <p class="text-2xl md:text-3xl font-bold text-gray-900">${formatCurrency(avgTicket)}</p>
+                </div>
+                <div class="bg-gray-100 p-3 rounded-xl summary-card-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 md:h-8 md:w-8 text-picpay-green-dark" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg></div>`;
+            document.getElementById('total-transactions-card').innerHTML = `
+                 <div class="summary-card-content">
+                    <p class="text-sm font-medium text-gray-500 mb-1">Transações</p>
+                    <p class="text-2xl md:text-3xl font-bold text-gray-900">${formatNumber(totalTransactions)}</p>
+                </div>
+                <div class="bg-gray-100 p-3 rounded-xl summary-card-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 md:h-8 md:w-8 text-picpay-green-dark" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10m16-5H4m16 0l-3-3m3 3l-3 3" /></svg></div>`;
+            document.getElementById('total-vidas-card').innerHTML = `
+                 <div class="summary-card-content">
+                    <p class="text-sm font-medium text-gray-500 mb-1">Vidas Únicas</p>
+                    <p class="text-2xl md:text-3xl font-bold text-gray-900">${formatNumber(totalVidasAcumuladas)}</p>
+                </div>
+                <div class="bg-gray-100 p-3 rounded-xl summary-card-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 md:h-8 md:w-8 text-picpay-green-dark" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg></div>`;
+        }
+        
+        function renderPenetrationCards(sortedStores) {
+            const container = document.getElementById('penetration-container');
+            container.innerHTML = '';
+            sortedStores.forEach(store => {
+                const card = document.createElement('div');
+                card.className = 'bg-white p-4 rounded-2xl shadow-lg interactive-item';
+                
+                const evolutionText = store.penetrationChange
+                    ? `<span class="text-xs font-bold ${store.penetrationChange > 0 ? 'text-green-500' : 'text-red-500'}">
+                        ${store.penetrationChange > 0 ? '+' : ''}${formatPercent(store.penetrationChange, 2)} vs sem. ant.
+                       </span>` 
+                    : '';
+
+                card.innerHTML = `
+                    <h3 class="font-bold text-gray-800 truncate">${store.name}</h3>
+                    <div class="flex items-baseline gap-x-2 mt-2">
+                        <p class="text-2xl md:text-3xl font-extrabold text-picpay-green-dark">${formatPercent(store.penetration)}</p>
+                        ${evolutionText}
+                    </div>
+                    <div class="text-xs text-gray-500 mt-1">
+                        <span class="font-semibold">${formatNumber(store.totalVidas)}</span> Vidas de 
+                        <span class="font-semibold">${formatNumber(POPULATION_DATA[store.name] || 0)}</span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+
+        function renderRankingChart(stores, sortBy = 'totalValorAntecipado') {
+            const sorted = [...stores].sort((a, b) => b[sortBy] - a[sortBy]);
+            
+            const ctx = document.getElementById('rankingChart').getContext('2d');
+            const labels = sorted.map(s => s.name);
+            const data = sorted.map(s => s[sortBy]);
+
+            const backgroundColors = Array(labels.length).fill('rgba(33, 194, 94, 0.2)');
+            const borderColors = Array(labels.length).fill('rgba(33, 194, 94, 1)');
+            
+            if(labels.length > 2) {
+                backgroundColors[0] = 'rgba(255, 215, 0, 0.4)'; borderColors[0] = 'rgba(255, 215, 0, 1)';
+                backgroundColors[1] = 'rgba(192, 192, 192, 0.4)'; borderColors[1] = 'rgba(192, 192, 192, 1)';
+                backgroundColors[2] = 'rgba(205, 127, 50, 0.4)'; borderColors[2] = 'rgba(205, 127, 50, 1)';
+            }
+            
+            let tooltipLabel = 'Valor';
+            let dataFormatFn = formatCurrency;
+            if (sortBy === 'penetration') {
+                tooltipLabel = 'Penetração';
+                dataFormatFn = formatPercent;
+            } else if (sortBy === 'totalVidas' || sortBy === 'totalTransactions') {
+                tooltipLabel = 'Total';
+                dataFormatFn = formatNumber;
+            }
+
+            if (chartInstances.ranking) chartInstances.ranking.destroy();
+            chartInstances.ranking = new Chart(ctx, {
+                type: 'bar',
+                data: { labels, datasets: [{ label: tooltipLabel, data, backgroundColor: backgroundColors, borderColor: borderColors, borderWidth: 2, borderRadius: 8 }] },
+                options: {
+                    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1D824A', titleColor: '#fff', bodyColor: '#fff', callbacks: { label: (c) => `${tooltipLabel}: ${dataFormatFn(c.raw)}` } } },
+                    scales: {
+                        x: { beginAtZero: true, grid: { color: '#E5E7EB' }, ticks: { color: '#6B7280', font: { weight: '600' }, callback: (v) => new Intl.NumberFormat('pt-BR', { notation: 'compact', compactDisplay: 'short' }).format(v) } },
+                        y: { grid: { display: false }, ticks: { color: '#374151', font: { size: 10, weight: '600' } } }
+                    }
+                }
+            });
+        }
+        
+        function setupRankingControls(stores) {
+            const controls = [
+                { key: 'totalValorAntecipado', label: 'Valor' },
+                { key: 'totalVidas', label: 'Vidas' },
+                { key: 'totalTransactions', label: 'Transações' },
+                { key: 'penetration', label: 'Penetração' }
+            ];
+            const container = document.getElementById('ranking-controls');
+            container.innerHTML = '';
+            controls.forEach((control, index) => {
+                const button = document.createElement('button');
+                button.textContent = control.label;
+                button.className = `ranking-btn px-3 py-1.5 text-xs md:px-4 md:py-2 md:text-sm font-semibold rounded-full transition-colors duration-200 ${index === 0 ? 'active' : 'text-gray-600'}`;
+                button.onclick = () => {
+                    container.querySelectorAll('.ranking-btn').forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+                    renderRankingChart(stores, control.key);
+                };
+                container.appendChild(button);
+            });
+        }
+
+        function setupStoreAnalysisTabs(sortedStores, latestDate) {
+            const navContainer = document.getElementById('tabs-navigation').querySelector('div');
+            navContainer.innerHTML = '';
+
+            sortedStores.forEach((store, index) => {
+                const tab = document.createElement('button');
+                tab.className = `tab-item interactive-item w-full text-left p-3 rounded-xl font-semibold ${index === 0 ? 'active' : ''}`;
+                tab.textContent = store.name;
+                tab.onclick = () => {
+                    document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    renderStoreDetails(store, latestDate);
+                };
+                navContainer.appendChild(tab);
+            });
+
+            if (sortedStores.length > 0) {
+                renderStoreDetails(sortedStores[0], latestDate);
+            }
+        }
+
+        function renderStoreDetails(store, latestDate) {
+            const contentContainer = document.getElementById('tab-content');
+            Object.values(chartInstances).forEach(chart => { if(chart.canvas.id !== 'rankingChart') chart.destroy()});
+
+            contentContainer.innerHTML = `
+                <div class="mb-6">
+                    <h3 class="text-2xl md:text-3xl font-bold text-gray-900">${store.name}</h3>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+                    <div class="bg-gray-50 p-3 rounded-xl">
+                        <p class="text-xs sm:text-sm text-gray-500 font-medium">Valor Antecipado</p>
+                        <p class="text-base sm:text-lg font-bold text-gray-800">${formatCurrency(store.totalValorAntecipado)}</p>
+                    </div>
+                    <div class="bg-gray-50 p-3 rounded-xl">
+                        <p class="text-xs sm:text-sm text-gray-500 font-medium">Ticket Médio</p>
+                        <p class="text-base sm:text-lg font-bold text-gray-800">${formatCurrency(store.avgTicket)}</p>
+                    </div>
+                     <div class="bg-gray-50 p-3 rounded-xl">
+                        <p class="text-xs sm:text-sm text-gray-500 font-medium">Transações</p>
+                        <p class="text-base sm:text-lg font-bold text-gray-800">${formatNumber(store.totalTransactions)}</p>
+                    </div>
+                    <div class="bg-gray-50 p-3 rounded-xl">
+                        <p class="text-xs sm:text-sm text-gray-500 font-medium">Vidas Acum.</p>
+                        <p class="text-base sm:text-lg font-bold text-gray-800">${formatNumber(store.totalVidas)}</p>
+                    </div>
+                     <div class="bg-green-50 p-3 rounded-xl border-l-4 border-green-500">
+                        <p class="text-xs sm:text-sm text-green-800 font-medium">Penetração</p>
+                        <p class="text-base sm:text-lg font-bold text-green-800">${formatPercent(store.penetration)}</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                    <div class="xl:col-span-2 space-y-8">
+                        <div>
+                            <h4 class="font-bold text-lg mb-3 text-gray-900">Tendência Diária</h4>
+                            <div class="h-80"><canvas id="trend-chart"></canvas></div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div>
+                                <h4 class="font-bold text-lg mb-3 text-gray-900">Flutuação do Ticket Médio</h4>
+                                <div class="h-56"><canvas id="ticket-chart"></canvas></div>
+                            </div>
+                             <div>
+                                <h4 class="font-bold text-lg mb-3 text-gray-900">Evolução da Penetração</h4>
+                                <div class="h-56"><canvas id="penetration-chart"></canvas></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="xl:col-span-1 space-y-8">
+                        <div>
+                            <div class="flex justify-between items-center mb-3">
+                                <h4 class="font-bold text-lg text-gray-900">Calendário</h4>
+                                <div id="heatmap-controls" class="flex space-x-1 rounded-full bg-gray-200 p-1" role="group"></div>
+                            </div>
+                            <div id="calendar-heatmap"></div>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-lg mb-3 text-gray-900">Insights Rápidos</h4>
+                            <div id="insights" class="space-y-3"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            if (!latestDate) return;
+
+            const dailyDataMap = new Map(store.dailyData.map(d => [d.date, d]));
+
+            const labels = Array.from({ length: latestDate.getUTCDate() }, (_, i) => {
+                const date = new Date(latestDate);
+                date.setUTCDate(i + 1);
+                return `2025-${(date.getUTCMonth() + 1).toString().padStart(2, '0')}-${date.getUTCDate().toString().padStart(2, '0')}`;
+            });
+
+            const dailyValorAntecipado = labels.map(label => dailyDataMap.get(label)?.valorAntecipado || null);
+            const dailyTransactions = labels.map(label => dailyDataMap.get(label)?.transactions || null);
+            const dailyVidas = labels.map(label => dailyDataMap.get(label)?.vidasDia || null);
+            const dailyAvgTicket = labels.map(label => dailyDataMap.get(label)?.avgTicket || null);
+            
+            const dailyCumulativePenetration = labels.map(label => {
+                const entry = dailyDataMap.get(label);
+                if (!entry) return null;
+                const population = POPULATION_DATA[store.name] || 0;
+                return population > 0 ? entry.vidasAcumuladas / population : 0;
+            });
+            
+            renderTrendChart('trend-chart', labels, dailyValorAntecipado, dailyTransactions, dailyVidas, 'valorAntecipado');
+            renderTicketChart('ticket-chart', labels, dailyAvgTicket);
+            renderPenetrationChart('penetration-chart', labels, dailyCumulativePenetration);
+            renderCalendarHeatmap(store, latestDate, 'valorAntecipado'); 
+            renderInsights(store);
+        }
+        
+        function renderTrendChart(canvasId, labels, valorData, transData, vidasData, highlightedMetric) {
+            const ctx = document.getElementById(canvasId)?.getContext('2d');
+            if(!ctx) return;
+
+            const datasets = [
+                {
+                    type: 'line', label: 'Vidas', data: vidasData, yAxisID: 'y1', tension: 0.4, borderWidth: 2, pointRadius: 2,
+                    borderColor: highlightedMetric === 'vidas' ? '#f59e0b' : 'rgba(245, 158, 11, 0.4)',
+                    backgroundColor: highlightedMetric === 'vidas' ? '#f59e0b' : 'rgba(245, 158, 11, 0.4)',
+                    spanGaps: true,
+                },
+                {
+                    type: 'line', label: 'Transações', data: transData, yAxisID: 'y1', tension: 0.4, borderWidth: 2, pointRadius: 2, borderDash: [5, 5],
+                    borderColor: highlightedMetric === 'transactions' ? '#3b82f6' : 'rgba(59, 130, 246, 0.4)',
+                    backgroundColor: highlightedMetric === 'transactions' ? '#3b82f6' : 'rgba(59, 130, 246, 0.4)',
+                    spanGaps: true,
+                },
+                {
+                    type: 'bar', label: 'Valor Antecipado', data: valorData, yAxisID: 'y', borderRadius: 4,
+                    backgroundColor: highlightedMetric === 'valorAntecipado' ? 'rgba(29, 130, 74, 0.7)' : 'rgba(29, 130, 74, 0.3)',
+                    borderColor: 'transparent',
+                }
+            ];
+
+            if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
+            chartInstances[canvasId] = new Chart(ctx, {
+                type: 'bar',
+                data: { labels, datasets },
+                options: {
+                    responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+                    plugins: { legend: { position: 'top', labels: { color: '#374151', font: { weight: '500' } } }, tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${c.dataset.yAxisID === 'y' ? formatCurrency(c.raw) : formatNumber(c.raw)}` } } },
+                    scales: {
+                        x: { type: 'time', time: { unit: 'day', displayFormats: { day: 'dd' } }, grid: { display: false }, ticks: { color: '#6B7280' } },
+                        y: { position: 'left', beginAtZero: true, grid: { color: '#E5E7EB' }, ticks: { color: '#1D824A', font: { weight: 'bold' }, callback: (v) => new Intl.NumberFormat('pt-BR', { notation: 'compact', compactDisplay: 'short' }).format(v) } },
+                        y1: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, ticks: { color: '#6B7280' } }
+                    }
+                }
+            });
+        }
+        
+        function renderTicketChart(canvasId, labels, ticketData) {
+            const ctx = document.getElementById(canvasId)?.getContext('2d');
+            if(!ctx) return;
+            if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
+            chartInstances[canvasId] = new Chart(ctx, {
+                type: 'line',
+                data: { labels, datasets: [{ label: 'Ticket Médio', data: ticketData, borderColor: '#0EA5E9', backgroundColor: 'rgba(14, 165, 233, 0.1)', borderWidth: 2, pointRadius: 2, tension: 0.4, fill: true, spanGaps: true }] },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => `Ticket Médio: ${formatCurrency(c.raw)}` } } },
+                    scales: {
+                        x: { type: 'time', time: { unit: 'day', displayFormats: { day: 'dd' } }, grid: { display: false }, ticks: { color: '#6B7280' } },
+                        y: { beginAtZero: false, grid: { color: '#E5E7EB' }, ticks: { color: '#0EA5E9', font: { weight: 'bold' }, callback: (v) => formatCurrency(v) } }
+                    }
+                }
+            });
+        }
+
+        function renderPenetrationChart(canvasId, labels, penetrationData) {
+            const ctx = document.getElementById(canvasId)?.getContext('2d');
+            if(!ctx) return;
+            if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
+            chartInstances[canvasId] = new Chart(ctx, {
+                type: 'line',
+                data: { labels, datasets: [{ label: 'Penetração', data: penetrationData, borderColor: '#8B5CF6', backgroundColor: 'rgba(139, 92, 246, 0.1)', borderWidth: 2, pointRadius: 2, tension: 0.4, fill: true, spanGaps: true }] },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => `Penetração: ${formatPercent(c.raw)}` } } },
+                    scales: {
+                        x: { type: 'time', time: { unit: 'day', displayFormats: { day: 'dd' } }, grid: { display: false }, ticks: { color: '#6B7280' } },
+                        y: { beginAtZero: true, grid: { color: '#E5E7EB' }, ticks: { color: '#8B5CF6', font: { weight: 'bold' }, callback: (v) => formatPercent(v) } }
+                    }
+                }
+            });
+        }
+
+        function renderCalendarHeatmap(store, latestDate, metric) {
+            const container = document.getElementById('calendar-heatmap');
+            const controlsContainer = document.getElementById('heatmap-controls');
+            if(!container || !controlsContainer) return;
+            controlsContainer.innerHTML = '';
+            
+            const month = latestDate.getUTCMonth();
+            const year = latestDate.getUTCFullYear();
+
+            const firstDayOfMonth = new Date(Date.UTC(year, month, 1));
+            const firstDayOfWeek = firstDayOfMonth.getUTCDay();
+            const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+
+            const dailyDataMap = new Map(store.dailyData.map(d => [new Date(d.date).getUTCDate(), d]));
+            
+            const values = Array.from({ length: daysInMonth }, (_, i) => dailyDataMap.get(i + 1)?.[metric.startsWith('valor') ? 'valorAntecipado' : metric] || 0);
+            const maxValue = Math.max(...values.filter(v => v > 0));
+            
+            let html = `<div class="calendar-grid">`;
+            ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].forEach(h => html += `<div class="calendar-day-header">${h}</div>`);
+            for (let i = 0; i < firstDayOfWeek; i++) html += `<div class="calendar-day empty"></div>`;
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const value = dailyDataMap.get(day)?.[metric.startsWith('valor') ? 'valorAntecipado' : metric] || 0;
+                const intensity = maxValue > 0 ? value / maxValue : 0;
+                let bgColor = '#f3f4f6';
+                if (value > 0) bgColor = `rgba(33, 194, 94, ${0.15 + intensity * 0.85})`;
+                html += `<div title="Dia ${day}: ${formatNumber(value)}" class="calendar-day" style="background-color: ${bgColor}; color: ${intensity > 0.6 ? 'white' : 'black'}"><span class="font-semibold">${day}</span></div>`;
+            }
+            html += `</div>`;
+            container.innerHTML = html;
+
+            const metrics = [ { key: 'valorAntecipado', label: 'Valor' }, { key: 'transactions', label: 'Trans.' }, { key: 'vidasDia', label: 'Vidas' } ];
+            metrics.forEach(m => {
+                const button = document.createElement('button');
+                button.textContent = m.label;
+                button.className = `px-2 py-1 text-xs md:px-3 md:py-1 md:text-sm font-semibold rounded-full transition-colors duration-200 ${metric === m.key ? 'bg-picpay-green-dark text-white' : 'text-gray-600 hover:bg-gray-300'}`;
+                button.onclick = () => renderCalendarHeatmap(store, latestDate, m.key);
+                controlsContainer.appendChild(button);
+            });
+        }
+
+        function renderInsights(store) {
+            const container = document.getElementById('insights');
+            if(!container) return;
+            container.innerHTML = '';
+            if (!store.dailyData || store.dailyData.length === 0) {
+                container.innerHTML = `<p>Dados insuficientes.</p>`;
+                return;
+            }
+            const bestDay = store.dailyData.reduce((max, day) => day.valorAntecipado > max.valorAntecipado ? day : max);
+            const bestVidasDay = store.dailyData.reduce((max, day) => day.vidasDia > max.vidasDia ? day : max);
+
+            const weekdays = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+            const weeklyTpv = new Array(7).fill(0).map(() => ({ total: 0, count: 0 }));
+            store.dailyData.forEach(d => {
+                const dayOfWeek = new Date(d.date).getUTCDay();
+                weeklyTpv[dayOfWeek].total += d.valorAntecipado;
+                weeklyTpv[dayOfWeek].count++;
+            });
+            const weeklyAvg = weeklyTpv.map(d => d.count > 0 ? d.total / d.count : 0);
+            const strongestDayIndex = weeklyAvg.indexOf(Math.max(...weeklyAvg));
+
+            const insightsData = [
+                { 
+                    label: 'Melhor Dia (Valor)', 
+                    value: `Dia ${new Date(bestDay.date).getUTCDate()}`,
+                    subvalue: formatCurrency(bestDay.valorAntecipado),
+                    color: 'text-green-600',
+                    icon: `<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>`
+                },
+                { 
+                    label: 'Pico de Novas Vidas', 
+                    value: `Dia ${new Date(bestVidasDay.date).getUTCDate()}`,
+                    subvalue: `${formatNumber(bestVidasDay.vidasDia)} Vidas`,
+                    color: 'text-blue-600',
+                    icon: `<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>`
+                },
+                 { 
+                    label: 'Dia Mais Forte', 
+                    value: weekdays[strongestDayIndex],
+                    subvalue: `Média ${formatCurrency(weeklyAvg[strongestDayIndex])}`,
+                    color: 'text-purple-600',
+                    icon: `<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>`
+                }
+            ];
+            
+            insightsData.forEach(item => {
+                const card = document.createElement('div');
+                card.className = `bg-gray-100 p-3 rounded-xl flex items-center space-x-3`;
+                card.innerHTML = `
+                    <div class="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-white shadow-sm ${item.color}">
+                        ${item.icon}
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500 font-semibold">${item.label}</p>
+                        <p class="text-sm font-bold text-gray-800">${item.value}</p>
+                        <p class="text-xs font-medium text-gray-600">${item.subvalue}</p>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+        
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+             try {
+                const { storesData, latestDate } = parseData(csvData);
+
+                if (!storesData || storesData.size === 0) {
+                    throw new Error("Nenhum dado válido foi processado do arquivo CSV.");
+                }
+                
+                const storeCalculations = [...storesData.entries()]
+                    .map(([name, data]) => ({ 
+                        name, 
+                        ...calculateTotals(data, POPULATION_DATA[name] || 0, latestDate), 
+                        dailyData: data 
+                    }))
+                    .sort((a, b) => b.totalValorAntecipado - a.totalValorAntecipado);
+
+                renderSummaryCards(storesData);
+                renderPenetrationCards(storeCalculations);
+                setupRankingControls(storeCalculations);
+                renderRankingChart(storeCalculations);
+                setupStoreAnalysisTabs(storeCalculations, latestDate);
+
+            } catch (error) {
+                console.error("Falha ao inicializar o dashboard:", error);
+                document.body.innerHTML = `<div class="text-center p-10"><h1 class="text-2xl font-bold text-red-600">Ocorreu um erro ao carregar o dashboard.</h1><p class="text-gray-600 mt-2">${error.message}</p></div>`;
+            }
+        });
+    </script>
+</body>
+</html>
